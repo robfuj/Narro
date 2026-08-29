@@ -4,12 +4,13 @@ import { useEffect, useRef, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { ArrowLeft, BookOpen, Loader2, PanelRight, Send } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { InputGroup, InputGroupInput, InputGroupAddon, InputGroupButton } from "@/components/ui/input-group"
 import { getOrCreateSessionId, resetSessionId } from "@/lib/session"
+import { cn } from "@/lib/utils"
 import type { Portrait, OpenThread, BranchMenu } from "@/lib/engine/types"
 
 interface TurnResponse {
@@ -152,14 +153,10 @@ export function StoryPlayer({ storyId, title }: { storyId: string; title: string
           </div>
         </div>
         <Sheet>
-          <SheetTrigger
-            render={
-              <Button variant="outline" size="sm">
-                <PanelRight data-icon="inline-start" />
-                Story state
-              </Button>
-            }
-          />
+          <SheetTrigger className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+            <PanelRight data-icon="inline-start" />
+            Story state
+          </SheetTrigger>
           <SheetContent>
             <SheetHeader>
               <SheetTitle className="font-serif">Living state</SheetTitle>

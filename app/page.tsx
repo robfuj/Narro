@@ -16,7 +16,7 @@ export default function Home() {
 
       <main className="mx-auto max-w-5xl px-6 py-14">
         <section className="mb-14 max-w-2xl">
-          <p className="mb-3 text-sm font-medium uppercase tracking-widest text-primary">転生したら · isekai</p>
+          <p className="mb-3 text-sm font-medium uppercase tracking-widest text-primary">a second life · isekai</p>
           <h1 className="mb-5 font-serif text-4xl leading-tight text-balance sm:text-5xl">
             Awaken in another world. Keep every memory. Live the second life your way.
           </h1>

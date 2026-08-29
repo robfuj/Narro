@@ -40,24 +40,68 @@ export async function aiScene(brief: DirectorOutput): Promise<string> {
   return result.text.trim()
 }
 
+function capitalize(name: string): string {
+  return name.length ? name[0].toUpperCase() + name.slice(1) : name
+}
+
+// The brief refers to the player as "player"; render that in second person
+// to match the AI writer's voice instead of naming a "character" the player
+// controls.
+function displayName(name: string): string {
+  return name.toLowerCase() === "player" ? "You" : capitalize(name)
+}
+
+// Deterministic prose fallback used whenever the AI scene writer is unavailable
+// (no model call, or the call failed). Reads the same Director brief the AI
+// writer would, but renders it as actual second-person narrative instead of
+// a debug dump of the brief's fields — the brief itself must never appear
+// verbatim in player-visible text.
 export function mockScene(brief: DirectorOutput): string {
-  const lines: string[] = []
-  if (brief.imagery_cue) lines.push(`[scene] ${brief.imagery_cue}`)
-  const who = Object.keys(brief.character_intentions || {}).join(", ")
-  if (who) lines.push(`Present: ${who}.`)
+  const sentences: string[] = []
+
+  if (brief.imagery_cue) {
+    sentences.push(`${capitalize(brief.imagery_cue)}.`)
+  }
 
   const inner = brief.character_inner || {}
   for (const [name, st] of Object.entries(inner)) {
-    const partsList: string[] = []
-    if (st.emotion) partsList.push(`feels ${st.emotion}`)
-    if (st.motivation) partsList.push(`wants to ${st.motivation}`)
-    if (partsList.length) lines.push(`${name} ${partsList.join(", ")}.`)
+    if (!st.emotion && !st.motivation) continue
+    const who = displayName(name)
+    const be = who === "You" ? "are" : "is"
+    // motivation strings are free-form (verb phrases like "recruit you" or bare
+    // states like "unaware") — a neutral connector keeps the sentence
+    // grammatical either way instead of forcing "wants to unaware".
+    if (st.emotion && st.motivation) {
+      sentences.push(`${who} ${be} ${st.emotion} — ${st.motivation}.`)
+    } else if (st.emotion) {
+      sentences.push(`${who} ${be} ${st.emotion}.`)
+    } else if (st.motivation) {
+      sentences.push(`${who}: ${st.motivation}.`)
+    }
   }
 
-  lines.push(`[${brief.selected_action}] ${brief.scene_goal}`)
-  if (brief.player_agency_options?.length) lines.push(`Your options: ${brief.player_agency_options.join(" / ")}.`)
-  if (brief.prohibited_facts?.length) lines.push(`(Hidden from characters: ${brief.prohibited_facts.join(", ")}.)`)
-  return lines.filter(Boolean).join("\n")
+  if (brief.scene_goal) {
+    // scene_goal is authored as a third-person planning note for the AI writer
+    // to rewrite ("the player's confession"); normalize the common pronouns so
+    // the deterministic fallback stays in second person like the rest of the
+    // scene instead of switching voice mid-paragraph.
+    const goal = brief.scene_goal
+      .replace(/\bthe player's\b/gi, "your")
+      .replace(/\bthe player\b/gi, "you")
+      .replace(/\btheir\b/gi, "your")
+    sentences.push(goal.endsWith(".") ? goal : `${goal}.`)
+  }
+
+  if (brief.player_agency_options?.length) {
+    const options = brief.player_agency_options
+    const choiceText =
+      options.length > 1
+        ? `${options.slice(0, -1).join(", ")}, or ${options[options.length - 1]}`
+        : options[0]
+    sentences.push(`What do you do — ${choiceText}?`)
+  }
+
+  return sentences.filter(Boolean).join(" ")
 }
 
 // Unused parameter kept for interface parity with the scaffold's mockScene(brief, characters).
