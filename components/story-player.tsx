@@ -170,7 +170,7 @@ export function StoryPlayer({ storyId, title, cover }: { storyId: string; title:
           />
           <div className="flex items-center gap-2">
             <BookOpen className="size-4 text-primary" />
-            <span className="font-serif text-base">{title}</span>
+            <span className="font-story text-base">{title}</span>
           </div>
         </div>
         <Sheet>
@@ -180,7 +180,7 @@ export function StoryPlayer({ storyId, title, cover }: { storyId: string; title:
           </SheetTrigger>
           <SheetContent>
             <SheetHeader>
-              <SheetTitle className="font-serif">Living state</SheetTitle>
+              <SheetTitle className="font-story">Living state</SheetTitle>
             </SheetHeader>
             <div className="flex flex-col gap-6 overflow-y-auto px-4 pb-6">
               {snapshot && (
@@ -260,7 +260,7 @@ export function StoryPlayer({ storyId, title, cover }: { storyId: string; title:
 
             {log.map((entry, i) =>
               entry.role === "scene" ? (
-                <p key={i} className="font-serif text-lg leading-relaxed text-pretty">
+                <p key={i} className="font-story text-lg leading-relaxed text-pretty">
                   {entry.text}
                 </p>
               ) : (
