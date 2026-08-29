@@ -4,9 +4,8 @@
 // and each character's INNER emotion + motivation (identification), per the
 // Transportation-Imagery Model.
 import { generateText } from "ai"
+import { getSceneModel } from "./model"
 import type { Character, DirectorOutput } from "./types"
-
-const SCENE_MODEL = "anthropic/claude-sonnet-4.5"
 
 const SCENE_SYSTEM = `You are the Scene renderer for an interactive otherworld adventure story engine called Narro.
 
@@ -33,7 +32,7 @@ function buildScenePrompt(brief: DirectorOutput): string {
 
 export async function aiScene(brief: DirectorOutput): Promise<string> {
   const result = await generateText({
-    model: SCENE_MODEL,
+    model: getSceneModel(),
     instructions: SCENE_SYSTEM,
     prompt: buildScenePrompt(brief),
   })

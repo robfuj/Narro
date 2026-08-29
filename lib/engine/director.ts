@@ -7,9 +7,8 @@
 import { generateObject } from "ai"
 import { directorZodSchema } from "./schema"
 import { withQualityLevers } from "./narrative-quality"
+import { getDirectorModel } from "./model"
 import type { Character, DirectorOutput, Moment, OpenThread, StoryState } from "./types"
-
-const DIRECTOR_MODEL = "anthropic/claude-sonnet-4.5"
 
 export interface DirectorInput {
   input: string
@@ -65,7 +64,7 @@ function buildPrompt(input: DirectorInput): string {
 
 export async function aiDirector(input: DirectorInput): Promise<DirectorOutput> {
   const result = await generateObject({
-    model: DIRECTOR_MODEL,
+    model: getDirectorModel(),
     schema: directorZodSchema,
     instructions: DIRECTOR_SYSTEM,
     prompt: buildPrompt(input),
