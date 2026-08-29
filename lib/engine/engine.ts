@@ -62,7 +62,8 @@ export async function runTurn(state: StoryState, playerInput: string, opts: Turn
     try {
       director = await aiDirector(directorInput)
       usedAi = true
-    } catch {
+    } catch (err) {
+      console.log("[v0] aiDirector failed:", err instanceof Error ? err.message : err)
       director = mockDirector(directorInput)
     }
   } else {
