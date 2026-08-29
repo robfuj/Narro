@@ -1,10 +1,15 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
+import { Fraunces, Inter } from 'next/font/google'
 import './globals.css'
 
+const _inter = Inter({ subsets: ['latin'], variable: '--font-sans' })
+const _fraunces = Fraunces({ subsets: ['latin'], variable: '--font-serif' })
+
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
+  title: 'Narro — Living Isekai Stories',
+  description:
+    'Narro is an interactive isekai storytelling engine. Awaken in another world with memories of a life before, and control your own adventure.',
   generator: 'v0.app',
   icons: {
     icon: [
@@ -26,11 +31,8 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  colorScheme: 'light dark',
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: 'white' },
-    { media: '(prefers-color-scheme: dark)', color: 'black' },
-  ],
+  colorScheme: 'dark',
+  themeColor: '#17171d',
 }
 
 export default function RootLayout({
@@ -39,8 +41,8 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
-      <body className="antialiased">
+    <html lang="en" className={`dark bg-background ${_inter.variable} ${_fraunces.variable}`}>
+      <body className="antialiased font-sans">
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
