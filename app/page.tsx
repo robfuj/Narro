@@ -14,8 +14,9 @@ export default function Home() {
       </header>
 
       <main className="mx-auto max-w-5xl px-5 py-6 sm:px-6">
-        <section className="mb-10 flex flex-col items-center gap-2 pt-4">
-          <StoriesRing totalStories={stories.length} />
+        <section className="mb-10">
+          <h2 className="mb-3 text-sm font-medium uppercase tracking-widest text-muted-foreground">Your progress</h2>
+          <StoriesRing stories={stories} />
         </section>
 
         <section>

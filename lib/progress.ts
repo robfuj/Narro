@@ -53,3 +53,20 @@ export function getAllStoryProgress(): StoryProgress[] {
   }
   return entries.sort((a, b) => b.updatedAt - a.updatedAt)
 }
+
+// Looks up saved progress for a single story, used by the per-story ring so
+// each bubble can show that story's own chapter/ended state.
+export function getStoryProgress(storyId: string): StoryProgress | null {
+  if (typeof window === "undefined") return null
+  try {
+    const raw = window.localStorage.getItem(`narro:progress:${storyId}`)
+    return raw ? (JSON.parse(raw) as StoryProgress) : null
+  } catch {
+    return null
+  }
+}
+
+// A short story arc is assumed to resolve around this chapter for the
+// purposes of the progress ring's fill percentage — there's no fixed total
+// chapter count in the data model, so this is a display heuristic only.
+export const ESTIMATED_ARC_CHAPTERS = 6
