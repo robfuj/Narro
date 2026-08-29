@@ -28,10 +28,6 @@ export default function Home() {
           </div>
         </section>
       </main>
-
-      <footer className="mx-auto max-w-5xl px-5 py-10 text-xs text-muted-foreground sm:px-6">
-        Adventure only — no romance or companionship mechanics at this stage.
-      </footer>
     </div>
   )
 }
