@@ -7,5 +7,5 @@ export default async function StoryPage({ params }: { params: Promise<{ id: stri
   const story = SAMPLE_STORIES[id]
   if (!story) notFound()
 
-  return <StoryPlayer storyId={story.id} title={story.title} />
+  return <StoryPlayer storyId={story.id} title={story.title} cover={story.cover} />
 }

@@ -68,7 +68,7 @@ export const SAMPLE_STORIES: Record<string, StoryState> = {
     cover: "/images/covers/aethermoor.png",
     premise:
       "You awaken in the kingdom of Aethermoor with a stranger's face and your own memories intact. No one here knows what you were before.",
-    genre: "isekai / political intrigue",
+    genre: "otherworld / political intrigue",
     player_role: "a reborn soul with memories of a life before, now a nobody in a new world",
     skeleton: {
       title: "The Reborn Soul of Aethermoor",
@@ -111,7 +111,7 @@ export const SAMPLE_STORIES: Record<string, StoryState> = {
     cover: "/images/covers/emberhold.png",
     premise:
       "You've come to Emberhold's mountain forges to earn a master's mark, standing against a rival who has never lost a duel of steel.",
-    genre: "isekai / competitive survival",
+    genre: "otherworld / competitive survival",
     player_role: "an apprentice smith chasing the forge-right, memories of another life quietly informing every choice",
     skeleton: {
       title: "The Forge-Right of Emberhold",

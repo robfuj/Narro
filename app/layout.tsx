@@ -7,9 +7,9 @@ const _inter = Inter({ subsets: ['latin'], variable: '--font-sans' })
 const _fraunces = Fraunces({ subsets: ['latin'], variable: '--font-serif' })
 
 export const metadata: Metadata = {
-  title: 'Narro — Living Isekai Stories',
+  title: 'Narro — Living Story Worlds',
   description:
-    'Narro is an interactive isekai storytelling engine. Awaken in another world with memories of a life before, and control your own adventure.',
+    'Narro is an interactive storytelling engine. Awaken in another world with memories of a life before, and control your own adventure.',
   generator: 'v0.app',
   icons: {
     icon: [
@@ -31,8 +31,8 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  colorScheme: 'dark',
-  themeColor: '#17171d',
+  colorScheme: 'light',
+  themeColor: '#f7f6f4',
 }
 
 export default function RootLayout({
@@ -41,7 +41,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`dark bg-background ${_inter.variable} ${_fraunces.variable}`}>
+    <html lang="en" className={`bg-background ${_inter.variable} ${_fraunces.variable}`}>
       <body className="antialiased font-sans">
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}

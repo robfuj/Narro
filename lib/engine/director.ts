@@ -28,7 +28,7 @@ function detectEnding(input: string): boolean {
   return /(claim your place|i claim|i flee|i take the road|the order is defeated|i forge the blade|i refuse the duel)/.test(t)
 }
 
-const DIRECTOR_SYSTEM = `You are the Narrative Director for an interactive isekai adventure story engine called Narro.
+const DIRECTOR_SYSTEM = `You are the Narrative Director for an interactive otherworld adventure story engine called Narro.
 
 You are the PLANNER, not the writer. You decide WHAT happens next; a separate scene model writes the prose from your brief. Never write prose yourself — only structured decisions.
 

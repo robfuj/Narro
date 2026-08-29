@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { InputGroup, InputGroupInput, InputGroupAddon, InputGroupButton } from "@/components/ui/input-group"
 import { getOrCreateSessionId, resetSessionId } from "@/lib/session"
+import { saveStoryProgress } from "@/lib/progress"
 import { cn } from "@/lib/utils"
 import type { Portrait, OpenThread, BranchMenu } from "@/lib/engine/types"
 
@@ -40,7 +41,7 @@ interface TurnResponse {
 
 type LogEntry = { role: "scene" | "player"; text: string }
 
-export function StoryPlayer({ storyId, title }: { storyId: string; title: string }) {
+export function StoryPlayer({ storyId, title, cover }: { storyId: string; title: string; cover: string }) {
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [log, setLog] = useState<LogEntry[]>([])
   const [options, setOptions] = useState<string[]>([])
@@ -81,6 +82,16 @@ export function StoryPlayer({ storyId, title }: { storyId: string; title: string
       setImages(data.character_images || {})
       setSnapshot(data.state_snapshot)
       setThreads(data.open_threads_snapshot || [])
+      saveStoryProgress({
+        storyId,
+        title,
+        cover,
+        chapter: data.state_snapshot.chapter,
+        current_objective: data.state_snapshot.current_objective,
+        stakes: data.state_snapshot.stakes,
+        next_event: data.state_snapshot.next_event,
+        ended: data.state_snapshot.ended,
+      })
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong")
     } finally {
@@ -107,6 +118,16 @@ export function StoryPlayer({ storyId, title }: { storyId: string; title: string
       setImages((prev) => ({ ...prev, ...data.character_images }))
       setSnapshot(data.state_snapshot)
       setThreads(data.open_threads_snapshot || [])
+      saveStoryProgress({
+        storyId,
+        title,
+        cover,
+        chapter: data.state_snapshot.chapter,
+        current_objective: data.state_snapshot.current_objective,
+        stakes: data.state_snapshot.stakes,
+        next_event: data.state_snapshot.next_event,
+        ended: data.state_snapshot.ended,
+      })
       if (data.ended) {
         setEnded(true)
         setBranchMenu(data.branch_menu)
