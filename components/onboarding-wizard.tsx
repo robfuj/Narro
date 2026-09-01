@@ -86,7 +86,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
         <div className="mb-8">
           <StepDots step={step} />
           <p className="mt-3 text-center text-xs uppercase tracking-widest text-muted-foreground">
-            Step {step + 1} of 3
+            Step {step + 1} of 4
           </p>
         </div>
 
