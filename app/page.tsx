@@ -2,11 +2,13 @@ import { BookOpen } from "lucide-react"
 import { listLibrary } from "@/lib/engine/store"
 import { StoryCard } from "@/components/story-card"
 import { StoriesRing } from "@/components/stories-ring"
+import { HomeGate } from "@/components/home-gate"
 
 export default function Home() {
   const stories = listLibrary()
 
   return (
+    <HomeGate>
     <div className="min-h-screen">
       <header className="mx-auto flex max-w-5xl items-center gap-2 px-5 pt-6 pb-2 sm:px-6">
         <BookOpen className="size-4 text-primary" />
@@ -29,5 +31,6 @@ export default function Home() {
         </section>
       </main>
     </div>
+    </HomeGate>
   )
 }
