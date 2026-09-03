@@ -27,7 +27,7 @@ export function HomeGate({ children }: { children: React.ReactNode }) {
   if (phase === "splash") {
     return (
       <SplashIntro
-        onDone={() => {
+        onFinish={() => {
           // Returning users skip straight to the app; new users onboard.
           setPhase(returning ? "app" : "onboarding")
         }}
