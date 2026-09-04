@@ -61,6 +61,7 @@ export const directorZodSchema = z.object({
   character_inner: z
     .record(z.string(), z.object({ emotion: z.string().nullable().optional(), motivation: z.string().nullable().optional() }))
     .default({}),
+  reader_callout: z.string().default(""),
   inciting_event: z.boolean().default(false),
   ending: z.boolean().default(false),
   branch_menu: z

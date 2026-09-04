@@ -132,6 +132,7 @@ export async function runTurn(state: StoryState, playerInput: string, opts: Turn
 
   return {
     scene: sceneText,
+    reader_callout: director.reader_callout ?? "",
     player_agency_options: director.player_agency_options,
     visible_state_delta: director.proposed_state_changes,
     retrieved_memory_ids: director.relevant_moment_ids,

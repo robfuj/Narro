@@ -60,6 +60,10 @@ export interface DirectorOutput {
   confidence: number
   imagery_cue: string
   character_inner: Record<string, CharacterInner>
+  // A short narrator line that speaks directly to the reader ("you") to hook
+  // them this turn — rendered by the UI as a distinct callout, never woven
+  // into the scene prose.
+  reader_callout?: string
   inciting_event?: boolean
   ending?: boolean
   branch_menu?: BranchMenu | null
@@ -126,6 +130,7 @@ export interface StoryState {
 
 export interface TurnResult {
   scene: string
+  reader_callout: string
   player_agency_options: string[]
   visible_state_delta: Record<string, number | string | boolean>
   retrieved_memory_ids: string[]
