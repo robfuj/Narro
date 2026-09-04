@@ -56,7 +56,10 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`bg-background ${_inter.variable} ${_fraunces.variable} ${_ebGaramond.variable}`}>
+    <html
+      lang="en"
+      className={`bg-background ${_inter.variable} ${_fraunces.variable} ${_cormorant.variable} ${_sourceSerif.variable} ${_plexMono.variable}`}
+    >
       <body className="antialiased font-sans">
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
