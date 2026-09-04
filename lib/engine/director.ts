@@ -39,6 +39,7 @@ Hard rules you MUST follow:
 - Never frame a RESOLVE as a graded/correct choice ("you failed", "wrong choice", "you should have") — consequences are earned costs and gains, never judgments.
 - LAUNCH SCOPE IS ADVENTURE-ONLY. Never write character_intentions, scene_goal, or pacing_delta that trend romantic or sexual (no romance, no dating, no crushes, no flirting), regardless of what the player asks for. Redirect toward adventure/intrigue instead.
 - Always include imagery_cue (one concrete sensory detail) and character_inner (emotion + motivation) for every character present in affected_entities, except for pure CONTINUE beats which may omit them.
+- Every turn, write reader_callout: ONE short, punchy line (max ~20 words) where the narrator speaks DIRECTLY to the reader as "you", breaking the fourth wall just enough to hook them — a challenge, a warning, a question, or a "here's what you need to know" beat that makes them feel personally implicated in what just happened. Keep it adventure-only and never let it reveal a prohibited fact. It is rendered separately from the scene prose, so do not fold it into scene_goal.
 - Track knowledge boundaries carefully: characters not in a fact's holder list must not learn it unless you are deliberately establishing a new REVEAL/inciting_event.
 - If the player's input matches an ending trigger (claiming their place, fleeing, resolving the central conflict), set selected_action to RESOLVE, ending: true, and populate branch_menu with continue_story, other_stories (using the story's leads_to ids), and end_here.`
 
@@ -90,6 +91,7 @@ export function mockDirector({ input, state, moments, characters, openThreads, l
       player_agency_options: ["continue this story", "go to a different story", "end here"],
       imagery_cue: "",
       character_inner: {},
+      reader_callout: "So this is how your chapter closes — but here, every ending is also a door. Which one do you walk through?",
       pacing_delta: {},
       proposed_state_changes: {},
       memory_writes: [],
@@ -129,6 +131,7 @@ export function mockDirector({ input, state, moments, characters, openThreads, l
         elara: { emotion: "shock softening into wonder", motivation: "decide whether to trust you" },
         player: { emotion: "exposed, racing", motivation: "keep Gareth from learning" },
       },
+      reader_callout: "You just said the one thing you can never take back. Feel that? That's the story tightening around you.",
       pacing_delta: { tension: 2, mystery: 3 },
       proposed_state_changes: { "relationship.elara.trust": 10 },
       memory_writes: [
@@ -169,6 +172,7 @@ export function mockDirector({ input, state, moments, characters, openThreads, l
         gareth: { emotion: "earnest, unaware", motivation: "win you to the guard" },
         elara: { emotion: "alarmed", motivation: "keep your secret buried" },
       },
+      reader_callout: "Here's where it gets real — the choice you make next is the one everyone will remember.",
       pacing_delta: { tension: 5, mystery: 3 },
       proposed_state_changes: { "relationship.elara.trust": -2 },
       memory_writes: [],
@@ -191,6 +195,7 @@ export function mockDirector({ input, state, moments, characters, openThreads, l
     player_agency_options: ["continue", "look around", "ask"],
     imagery_cue: "",
     character_inner: {},
+    reader_callout: "Stay close — this world only shows its hand to the ones who keep moving.",
     pacing_delta: {},
     proposed_state_changes: {},
     memory_writes: [],

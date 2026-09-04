@@ -36,6 +36,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       scene: state.skeleton.opening_scene,
+      reader_callout: "You're about to step into a life that isn't yours yet. Pay attention — this world remembers what you do.",
       player_agency_options: ["continue"],
       visible_state_delta: {},
       retrieved_memory_ids: [],
