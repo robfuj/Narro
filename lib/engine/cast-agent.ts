@@ -3,18 +3,29 @@
 // The Director is the single "brain" — it plans the beat and narrates. Each
 // cast member is a separate sub-agent that reasons for itself: it gets its own
 // persona, its own goals/secrets, and ONLY the memories its character actually
-// witnessed (the knowledge-boundary model), then returns its own intent,
-// emotion, and spoken line in its own voice.
+// witnessed (the knowledge-boundary model).
 //
-// The brain never writes a character's dialogue for them. It hands each
-// sub-agent the beat, the sub-agents answer in parallel, and the Scene
-// renderer weaves their answers into prose.
+// Order matters: the cast answers BEFORE the brain plans. Each sub-agent reacts
+// to what the player just said, from its own knowledge, and the Director then
+// plans the beat around those real thoughts — so character intentions drive the
+// story instead of being invented after the fact. The brain never writes a
+// character's dialogue for them; the Scene renderer weaves their own answers
+// into prose.
 import { generateObject } from "ai"
 import { z } from "zod"
 import { getCastModel } from "./model"
-import type { CastAgentOutput, Character, DirectorOutput, Moment } from "./types"
+import type { CastAgentOutput, Character, Moment, StoryState } from "./types"
 
 export type { CastAgentOutput }
+
+// Everything a cast sub-agent needs to reason about the current beat. There is
+// no Director brief yet — the cast answers first, and the brain reads this.
+export interface CastContext {
+  // What the player just said or did: the thing every character reacts to.
+  playerInput: string
+  moments: Moment[]
+  state: StoryState["state"]
+}
 
 const castAgentSchema = z.object({
   intent: z.string().default(""),
@@ -24,17 +35,6 @@ const castAgentSchema = z.object({
   wants_from_player: z.string().default(""),
 })
 
-// The brief keys characters by their state id ("elara") while the cast record
-// carries the display name ("Elara"), so lookups must tolerate either casing.
-function lookup<T>(map: Record<string, T> | undefined, name: string): T | undefined {
-  if (!map) return undefined
-  const lower = name.toLowerCase()
-  for (const [key, value] of Object.entries(map)) {
-    if (key.toLowerCase() === lower) return value
-  }
-  return undefined
-}
-
 function buildPersona(character: Character): string {
   const parts: string[] = []
   parts.push(`You are ${character.name}, a character in an interactive otherworld adventure called Narro.`)
@@ -43,7 +43,7 @@ function buildPersona(character: Character): string {
   if (character.goals?.length) parts.push(`Your goals: ${character.goals.join("; ")}`)
   if (character.secrets?.length) {
     parts.push(
-      `Your secrets (you know these, and you guard them — never volunteer them unless the beat forces it): ${character.secrets.join("; ")}`,
+      `Your secrets (you know these, and you guard them — never volunteer them unless the moment forces it): ${character.secrets.join("; ")}`,
     )
   }
   if (character.knowledge?.length) parts.push(`What you know: ${character.knowledge.join("; ")}`)
@@ -60,44 +60,35 @@ function memoriesFor(characterId: string, moments: Moment[]): string[] {
     .map((m) => `- ${m.event}`)
 }
 
-function buildCastPrompt(character: Character, brief: DirectorOutput, moments: Moment[]): string {
+function buildCastPrompt(character: Character, ctx: CastContext): string {
   const parts: string[] = []
 
-  parts.push(`THE BEAT (decided by the story's narrator — do not change it):\n${brief.scene_goal}`)
-  if (brief.imagery_cue) parts.push(`Sensory detail grounding this beat: ${brief.imagery_cue}`)
+  parts.push(
+    `THE SITUATION:\nScene: ${ctx.state.scene}\nObjective: ${ctx.state.current_objective}\nStakes: ${ctx.state.stakes}`,
+  )
 
-  const intention = lookup(brief.character_intentions, character.name)
-  if (intention) parts.push(`The narrator's note on your intention this beat: ${intention}`)
-
-  const inner = lookup(brief.character_inner, character.name)
-  if (inner?.emotion || inner?.motivation) {
-    parts.push(`Your starting state this beat: you feel ${inner.emotion || "unspecified"} and want to ${inner.motivation || "unspecified"}.`)
+  const memories = memoriesFor(character.name.toLowerCase(), ctx.moments)
+  if (memories.length) {
+    parts.push(`WHAT YOU REMEMBER (only what you personally witnessed):\n${memories.join("\n")}`)
+  } else {
+    parts.push(`You have witnessed nothing yet — you are meeting this situation fresh.`)
   }
 
-  const memories = memoriesFor(character.name.toLowerCase(), moments)
-  if (memories.length) parts.push(`WHAT YOU REMEMBER (only what you personally witnessed):\n${memories.join("\n")}`)
-
-  if (brief.prohibited_facts?.length) {
-    parts.push(`HARD CONSTRAINT — you do not know and must never hint at: ${brief.prohibited_facts.join(", ")}`)
-  }
+  parts.push(`THE PLAYER JUST SAID OR DID:\n"${ctx.playerInput}"`)
 
   parts.push(
-    `Respond as ${character.name}. Write "line" as ONE short spoken line in your own voice (max ~25 words) — or leave it empty if you would stay silent this beat. Never break character, never address the reader directly, and keep it adventure-only (no romantic or sexual framing).`,
+    `React as ${character.name}, from only what you know. Decide what you feel, what you are trying to do, and what you want from the player. Write "line" as ONE short spoken line in your own voice (max ~25 words) — or leave it empty if you would stay silent. If the player said something you have no way of knowing about, react with confusion or suspicion, never with knowledge you do not have. Never break character, never address the reader directly, and keep it adventure-only (no romantic or sexual framing).`,
   )
 
   return parts.join("\n\n")
 }
 
-export async function aiCastAgent(
-  character: Character,
-  brief: DirectorOutput,
-  moments: Moment[],
-): Promise<CastAgentOutput> {
+export async function aiCastAgent(character: Character, ctx: CastContext): Promise<CastAgentOutput> {
   const result = await generateObject({
     model: getCastModel(),
     schema: castAgentSchema,
     instructions: buildPersona(character),
-    prompt: buildCastPrompt(character, brief, moments),
+    prompt: buildCastPrompt(character, ctx),
   })
 
   return {
@@ -111,28 +102,31 @@ export async function aiCastAgent(
 }
 
 // Deterministic fallback so a turn never breaks when no model is reachable.
-// Derives the sub-agent's answer from the brain's brief plus the character's
-// own goals, so each cast member still reads as a distinct voice.
-export function mockCastAgent(
-  character: Character,
-  brief: DirectorOutput,
-  _moments: Moment[],
-): CastAgentOutput {
-  const inner = lookup(brief.character_inner, character.name)
-  const intention = lookup(brief.character_intentions, character.name)
+// Reacts to the player's actual words against this character's own secrets and
+// knowledge, so the same character reads differently across beats instead of
+// reciting its bio every turn.
+export function mockCastAgent(character: Character, ctx: CastContext): CastAgentOutput {
+  const input = (ctx.playerInput || "").toLowerCase()
   const goal = character.goals?.[0] || ""
 
-  // Prefer the brain's beat-specific note over the character's static goal, so
-  // the same character reads differently across beats instead of repeating
-  // their bio every turn.
-  const emotion = inner?.emotion || "watchful"
-  const motivation = inner?.motivation || intention || goal || "read the room"
-  const intent = intention || inner?.motivation || goal || "read the room"
+  // Only match on substantial words so short words like "the" never false-hit.
+  const mentions = (text: string) =>
+    text
+      .toLowerCase()
+      .split(/[^a-z]+/)
+      .some((word) => word.length > 4 && input.includes(word))
 
-  // A planning note ("keep the inn solvent") is not dialogue. Rather than put
-  // awkward words in a character's mouth, stay silent and let the renderer
-  // externalize this as action and subtext — which is what a live sub-agent
-  // does too when it chooses not to speak.
+  const secret = (character.secrets || []).find(mentions) || ""
+  const known = (character.knowledge || []).find(mentions) || ""
+
+  const emotion = secret ? "guarded, alert" : known ? "interested, measuring you" : "watchful"
+  const motivation = secret ? "keep what you are hiding out of this" : goal || "read the room"
+  const intent = secret ? "deflect without showing why" : motivation
+
+  // A planning note is not dialogue. Rather than put awkward words in a
+  // character's mouth, stay silent and let the renderer externalize this as
+  // action and subtext — which is what a live sub-agent does too when it
+  // chooses not to speak.
   const line = ""
 
   // Only claim a want "from you" when the material is actually about the
@@ -148,20 +142,17 @@ export function mockCastAgent(
   }
 }
 
-// Runs one sub-agent per cast member present in this beat, in parallel. The
+// Runs one sub-agent per cast member present in the scene, in parallel. The
 // player is the reader, not a cast agent, so it is skipped.
 export async function runCastAgents(
   characters: Record<string, Character>,
-  brief: DirectorOutput,
-  moments: Moment[],
+  ctx: CastContext,
   useAi: boolean,
 ): Promise<Record<string, CastAgentOutput>> {
-  const present = (brief.affected_entities || []).filter((id) => {
-    if (id.toLowerCase() === "player") return false
-    return Boolean(characters[id])
-  })
+  const seen = ctx.state.seen_characters.filter((id) => characters[id])
+  const present = seen.length ? seen : Object.keys(characters)
 
-  // Cap parallel sub-agent calls so a crowded beat can't fan out unbounded.
+  // Cap parallel sub-agent calls so a crowded scene can't fan out unbounded.
   const cast = present.slice(0, 4)
   if (!cast.length) return {}
 
@@ -170,12 +161,12 @@ export async function runCastAgents(
       const character = characters[id]
       if (useAi) {
         try {
-          return await aiCastAgent(character, brief, moments)
+          return await aiCastAgent(character, ctx)
         } catch {
-          return mockCastAgent(character, brief, moments)
+          return mockCastAgent(character, ctx)
         }
       }
-      return mockCastAgent(character, brief, moments)
+      return mockCastAgent(character, ctx)
     }),
   )
 

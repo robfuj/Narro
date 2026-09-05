@@ -1,6 +1,6 @@
 // Story Engine orchestrator (architecture §3, §4.1). Stateless — owns the
-// per-turn sequence: load state -> Director -> Rules Layer -> Scene -> Safety
-// -> commit. No creative logic lives here.
+// per-turn sequence: load state -> Cast sub-agents -> Director -> Rules Layer
+// -> Scene -> Safety -> commit. No creative logic lives here.
 import { aiDirector, mockDirector } from "./director"
 import { aiScene, mockScene } from "./scene"
 import { runCastAgents } from "./cast-agent"
@@ -46,6 +46,16 @@ export interface TurnOptions {
 }
 
 export async function runTurn(state: StoryState, playerInput: string, opts: TurnOptions): Promise<TurnResult> {
+  // Multi-agent step 1 — the cast reacts FIRST. Each character reasons for
+  // itself, from only what it personally witnessed, about what the player just
+  // said. The brain then plans the beat around those real thoughts instead of
+  // inventing everyone's reactions after the fact.
+  const cast = await runCastAgents(
+    state.characters,
+    { playerInput, moments: state.moments, state: state.state },
+    opts.useAi,
+  )
+
   const directorInput = {
     input: playerInput,
     state: state.state,
@@ -54,6 +64,7 @@ export async function runTurn(state: StoryState, playerInput: string, opts: Turn
     openThreads: state.openThreads,
     knowledge: state.knowledge,
     leadsTo: state.leads_to,
+    castThoughts: cast,
   }
 
   let director: DirectorOutput
@@ -89,11 +100,6 @@ export async function runTurn(state: StoryState, playerInput: string, opts: Turn
   const warnings = narrativeQualityWarnings(director)
   const transportation = estimateTransportation(director, { openThreads: state.openThreads })
   state.state.transportation = transportation
-
-  // Multi-agent step: the brain has planned the beat, now every cast member
-  // present reasons for itself (in parallel) and returns its own voice. The
-  // renderer weaves their answers into prose rather than inventing them.
-  const cast = await runCastAgents(state.characters, director, state.moments, opts.useAi && usedAi)
 
   let sceneText: string
   if (opts.useAi && usedAi) {

@@ -157,7 +157,6 @@ function CastList({ images, relationships }: { images: Record<string, Portrait>;
 export function StoryPlayer({ storyId, title, cover }: { storyId: string; title: string; cover: string }) {
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [log, setLog] = useState<LogEntry[]>([])
-  const [options, setOptions] = useState<string[]>([])
   const [images, setImages] = useState<Record<string, Portrait>>({})
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null)
   const [threads, setThreads] = useState<OpenThread[]>([])
@@ -213,7 +212,6 @@ export function StoryPlayer({ storyId, title, cover }: { storyId: string; title:
           cast: data.cast,
         },
       ])
-      setOptions(data.player_agency_options || [])
       setImages(data.character_images || {})
       setSnapshot(data.state_snapshot)
       setThreads(data.open_threads_snapshot || [])
@@ -250,7 +248,6 @@ export function StoryPlayer({ storyId, title, cover }: { storyId: string; title:
           cast: data.cast,
         },
       ])
-      setOptions(data.player_agency_options || [])
       setImages((prev) => ({ ...prev, ...data.character_images }))
       setSnapshot(data.state_snapshot)
       setThreads(data.open_threads_snapshot || [])
@@ -468,26 +465,14 @@ export function StoryPlayer({ storyId, title, cover }: { storyId: string; title:
               </div>
             </div>
           ) : (
-            <>
-              {options.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {options.map((opt) => (
-                    <Button
-                      key={opt}
-                      variant="outline"
-                      size="sm"
-                      disabled={loading}
-                      onClick={() => submitTurn(opt)}
-                      className="capitalize"
-                    >
-                      {opt}
-                    </Button>
-                  ))}
-                </div>
-              )}
+            <div className="flex flex-col gap-2">
+              {/* One free-text prompt, no preset menu. The reader writes what
+                  they say; the cast sub-agents react to it and the brain plans
+                  the beat around their thoughts. */}
+              <Eyebrow>Your move</Eyebrow>
               <InputGroup>
                 <InputGroupInput
-                  placeholder="Write what you do or say…"
+                  placeholder="What would you say to move the story?"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
@@ -498,13 +483,13 @@ export function StoryPlayer({ storyId, title, cover }: { storyId: string; title:
                     size="icon-xs"
                     disabled={loading || !input.trim()}
                     onClick={() => submitTurn(input)}
-                    aria-label="Send"
+                    aria-label="Send what you say"
                   >
                     <Send />
                   </InputGroupButton>
                 </InputGroupAddon>
               </InputGroup>
-            </>
+            </div>
           )}
         </div>
       </div>

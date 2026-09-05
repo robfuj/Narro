@@ -8,7 +8,7 @@ import { generateObject } from "ai"
 import { directorZodSchema } from "./schema"
 import { withQualityLevers } from "./narrative-quality"
 import { getDirectorModel } from "./model"
-import type { Character, DirectorOutput, Moment, OpenThread, StoryState } from "./types"
+import type { CastAgentOutput, Character, DirectorOutput, Moment, OpenThread, StoryState } from "./types"
 
 export interface DirectorInput {
   input: string
@@ -18,6 +18,9 @@ export interface DirectorInput {
   openThreads: OpenThread[]
   knowledge: Record<string, string[]>
   leadsTo: string[]
+  // Each present character's own sub-agent answer, produced BEFORE the brain
+  // plans. The Director must plan around these rather than invent reactions.
+  castThoughts: Record<string, CastAgentOutput>
   violation?: string[]
 }
 
@@ -32,7 +35,8 @@ const DIRECTOR_SYSTEM = `You are the Narrative Director for an interactive other
 You are the PLANNER, not the writer. You decide WHAT happens next; a separate scene model writes the prose from your brief. Never write prose yourself — only structured decisions.
 
 Hard rules you MUST follow:
-- Offer at least 2, ideally 3-4, distinct player_agency_options every turn.
+- The cast sub-agents have ALREADY answered for themselves before you plan. Their thoughts are listed below. Plan the beat AROUND what each character actually feels, wants, and intends — use their intentions to drive the scene, put their wants in friction with each other, and decide who gets what. Never contradict a character's stated thought, and never substitute a different reaction for them. If a character wants something from the player, build the beat so that want presses on the player.
+- player_agency_options is INTERNAL planning signal only. The reader is never shown a menu — they write freely, in their own words, every turn. Use these options only to anticipate what the reader might do so your consequences are ready. Never funnel the reader toward them in scene_goal, and never write a beat that only makes sense if the reader picks from a list.
 - A REVEAL action must be grounded in a stored Moment id (relevant_moment_ids) or explicitly flagged inciting_event: true for a brand-new secret.
 - Never reveal a fact (allowed_facts) to a character who is not already a holder in the knowledge map, unless inciting_event is true.
 - Never flip an already-established canon_flag unless selected_action is TURN or CLIMAX.
@@ -54,6 +58,24 @@ function buildPrompt(input: DirectorInput): string {
     `Recent moments: ${JSON.stringify(input.moments.slice(-8))}`,
     `Linked stories this can hand off to on ending (leads_to): ${JSON.stringify(input.leadsTo)}`,
   ]
+
+  // The cast answered for themselves first. Handing their thoughts to the brain
+  // is what makes this a multi-agent system rather than one model doing voices.
+  const thoughts = Object.values(input.castThoughts || {})
+  if (thoughts.length) {
+    lines.push(
+      "",
+      "WHAT EACH CHARACTER IS THINKING RIGHT NOW (their own sub-agents, answered before you planned — plan around this, never contradict it):",
+      ...thoughts.map((c) => {
+        const bits = [`- ${c.character}:`]
+        if (c.emotion) bits.push(`feels ${c.emotion};`)
+        if (c.intent) bits.push(`intends to ${c.intent};`)
+        if (c.wants_from_player) bits.push(`wants from the player: ${c.wants_from_player};`)
+        bits.push(c.line ? `will say: "${c.line}"` : "will stay silent")
+        return bits.join(" ")
+      }),
+    )
+  }
   if (input.violation?.length) {
     lines.push("", `Your previous output was REJECTED by the deterministic rules layer for: ${input.violation.join("; ")}. Produce a corrected output that avoids these violations.`)
   }
@@ -73,7 +95,7 @@ export async function aiDirector(input: DirectorInput): Promise<DirectorOutput> 
   return withQualityLevers(result.object as DirectorOutput)
 }
 
-export function mockDirector({ input, state, moments, characters, openThreads, leadsTo }: DirectorInput): DirectorOutput {
+export function mockDirector({ input, state, moments, characters, openThreads, leadsTo, castThoughts }: DirectorInput): DirectorOutput {
   const text = (input || "").toLowerCase()
   const secretKnown = moments.some((m) => m.id === "#27")
   const ended = detectEnding(input)
@@ -189,18 +211,32 @@ export function mockDirector({ input, state, moments, characters, openThreads, l
   const present = state.seen_characters.filter((id) => characters[id])
   const affected = present.length ? present : Object.keys(characters)
 
+  // The cast already answered for themselves. Even the deterministic brain must
+  // plan around what they actually want, rather than ignoring them and emitting
+  // a generic "let the scene breathe" beat.
+  const thoughts = Object.values(castThoughts || {})
+  const wants = thoughts.map((c) => c.wants_from_player || c.intent).filter(Boolean)
+
   const d: DirectorOutput = {
     selected_action: "CONTINUE",
-    rationale: "No earned development; let the scene breathe.",
-    scene_goal: "Continue the immediate scene without a material state shift.",
+    rationale: wants.length
+      ? `No earned development yet; let the scene breathe while the cast presses their own wants: ${wants.join("; ")}.`
+      : "No earned development; let the scene breathe.",
+    scene_goal: wants.length
+      ? `Continue the scene while the people in the room press what they want: ${wants.join("; ")}.`
+      : "Continue the immediate scene without a material state shift.",
     relevant_moment_ids: [],
     affected_entities: ["player", ...affected],
     allowed_facts: [],
     prohibited_facts: [],
-    character_intentions: {},
+    character_intentions: Object.fromEntries(thoughts.map((c) => [c.character, c.intent])),
     player_agency_options: ["continue", "look around", "ask"],
     imagery_cue: "",
-    character_inner: {},
+    // Carry each sub-agent's own emotion/motivation into the brief so the brain
+    // and the renderer agree on who each character is right now.
+    character_inner: Object.fromEntries(
+      thoughts.map((c) => [c.character, { emotion: c.emotion, motivation: c.motivation || c.intent }]),
+    ),
     reader_callout: "Stay close — this world only shows its hand to the ones who keep moving.",
     pacing_delta: {},
     proposed_state_changes: {},
