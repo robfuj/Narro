@@ -49,6 +49,10 @@ type LogEntry = {
   callout?: string
   // Each present character's own sub-agent answer for this beat.
   cast?: Record<string, CastAgentOutput>
+  // Whether the live models produced this beat, or the deterministic fallback
+  // did. Surfaced in the entry header so a silent model failure is visible
+  // instead of reading as "the story stopped progressing".
+  usedAi?: boolean
 }
 
 // Small mono eyebrow label, the Coldharbour-style section marker rendered in
@@ -238,16 +242,17 @@ export function StoryPlayer({ storyId, title, cover }: { storyId: string; title:
       })
       const data: TurnResponse = await res.json()
       if (!res.ok) throw new Error(data.error || "Failed to continue")
-      setLog((l) => [
-        ...l,
-        {
-          role: "scene",
-          text: data.scene,
-          chapter: data.state_snapshot.chapter,
-          callout: data.reader_callout,
-          cast: data.cast,
-        },
-      ])
+  setLog((l) => [
+  ...l,
+  {
+  role: "scene",
+  text: data.scene,
+  chapter: data.state_snapshot.chapter,
+  callout: data.reader_callout,
+  cast: data.cast,
+  usedAi: data.used_ai,
+  },
+  ])
       setImages((prev) => ({ ...prev, ...data.character_images }))
       setSnapshot(data.state_snapshot)
       setThreads(data.open_threads_snapshot || [])
@@ -377,6 +382,20 @@ export function StoryPlayer({ storyId, title, cover }: { storyId: string; title:
                   <Eyebrow>
                     Entry {String(entryIndex).padStart(2, "0")}
                     {typeof entry.chapter === "number" && <> · Chapter {String(entry.chapter).padStart(2, "0")}</>}
+                    {/* The opening beat is static by design, so only flag the
+                        mode once the engine is actually taking turns. */}
+                    {entryIndex > 1 && typeof entry.usedAi === "boolean" && (
+                      <>
+                        {" · "}
+                        {entry.usedAi ? (
+                          <span className="text-primary">live models</span>
+                        ) : (
+                          <span className="text-destructive" title="The model call failed, so the deterministic fallback wrote this beat.">
+                            fallback engine
+                          </span>
+                        )}
+                      </>
+                    )}
                   </Eyebrow>
 
                   {/* The narrator breaking the fourth wall to speak to the reader.

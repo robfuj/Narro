@@ -12,9 +12,13 @@ import { createOpenAICompatible } from "@ai-sdk/openai-compatible"
 import type { LanguageModel } from "ai"
 
 // The single brain (narrator/planner) and the prose renderer carry the story's
-// voice, so they default to a strong model.
-const GATEWAY_BRAIN_MODEL = "anthropic/claude-sonnet-4.5"
-const GATEWAY_SCENE_MODEL = "anthropic/claude-sonnet-4.5"
+// voice, so they default to the strongest model the Gateway serves on the free
+// tier. NOTE: anthropic/* and google/* are gated behind paid credits — pointing
+// a role at one makes every call throw, and the engine then silently degrades to
+// the deterministic mock (story stops progressing, cast stops reacting). Verify
+// a model is actually callable before making it a default.
+const GATEWAY_BRAIN_MODEL = "openai/gpt-4.1"
+const GATEWAY_SCENE_MODEL = "openai/gpt-4.1"
 // Cast sub-agents are short, high-fan-out calls (one per character per turn),
 // so they default to a faster/cheaper model than the brain and the renderer.
 const GATEWAY_CAST_MODEL = "openai/gpt-4.1-mini"

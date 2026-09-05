@@ -217,14 +217,24 @@ export function mockDirector({ input, state, moments, characters, openThreads, l
   const thoughts = Object.values(castThoughts || {})
   const wants = thoughts.map((c) => c.wants_from_player || c.intent).filter(Boolean)
 
+  // A quiet beat must still MOVE. Record what the player actually said, escalate
+  // a live thread, and advance the chapter on a cadence — otherwise every turn
+  // renders the same beat and the story reads as stuck on a single path.
+  const turnIndex = moments.length
+  const said = (input || "").trim().replace(/\s+/g, " ")
+  const subject = said.length > 90 ? `${said.slice(0, 87).trimEnd()}…` : said
+  const advancesChapter = turnIndex > 0 && turnIndex % 3 === 0
+  const nextChapter = state.chapter + 1
+  const openThread = openThreads.find((t) => t.status === "open")
+
   const d: DirectorOutput = {
     selected_action: "CONTINUE",
     rationale: wants.length
       ? `No earned development yet; let the scene breathe while the cast presses their own wants: ${wants.join("; ")}.`
       : "No earned development; let the scene breathe.",
-    scene_goal: wants.length
-      ? `Continue the scene while the people in the room press what they want: ${wants.join("; ")}.`
-      : "Continue the immediate scene without a material state shift.",
+    scene_goal: subject
+      ? `Answer what the player just did ("${subject}") through the people in the room, then let the beat move forward: ${wants.join("; ") || "the scene does not stay still"}.`
+      : `Continue the scene while the people in the room press what they want: ${wants.join("; ") || "and the moment moves forward"}.`,
     relevant_moment_ids: [],
     affected_entities: ["player", ...affected],
     allowed_facts: [],
@@ -237,11 +247,39 @@ export function mockDirector({ input, state, moments, characters, openThreads, l
     character_inner: Object.fromEntries(
       thoughts.map((c) => [c.character, { emotion: c.emotion, motivation: c.motivation || c.intent }]),
     ),
-    reader_callout: "Stay close — this world only shows its hand to the ones who keep moving.",
-    pacing_delta: {},
-    proposed_state_changes: {},
-    memory_writes: [],
-    open_thread_updates: [],
+    reader_callout: advancesChapter
+      ? `The chapter turns. What you just did here is going to follow you out of this room.`
+      : subject
+        ? `You said it out loud. Now watch the room decide what to do with you.`
+        : "Stay close — this world only shows its hand to the ones who keep moving.",
+    pacing_delta: { tension: 1 },
+    proposed_state_changes: advancesChapter
+      ? {
+          "state.chapter": nextChapter,
+          "state.next_event": `Chapter ${nextChapter}: what you said here comes back around, and it is not alone.`,
+        }
+      : {
+          "state.next_event": subject
+            ? `What you just said does not stay quiet for long.`
+            : state.next_event,
+        },
+    memory_writes: subject
+      ? [
+          {
+            id: `#m${turnIndex + 1}`,
+            event: `You ${subject.charAt(0).toLowerCase()}${subject.slice(1)}.`,
+            participants: ["player", ...affected],
+            tags: ["player_action"],
+            impact: {},
+            visibility: ["all"],
+            source: "player_input",
+            consequence_potential: "the room remembers what you said here",
+            status: "unresolved",
+          },
+        ]
+      : [],
+    // Escalate a live thread so the thread rail visibly changes between turns.
+    open_thread_updates: openThread && openThread.priority !== "high" ? [{ id: openThread.id, priority: "high" }] : [],
     safety_flags: [],
     confidence: 0.8,
   }

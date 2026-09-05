@@ -101,6 +101,32 @@ export async function aiCastAgent(character: Character, ctx: CastContext): Promi
   }
 }
 
+// Strips the "I ask Elara whether…" / "I search the cellar…" framing off the
+// player's input so the fallback answers the SUBJECT of what they said rather
+// than echoing the player's own first-person sentence back in a character's
+// mouth. Returns "" when nothing substantive is left.
+function topicOf(input: string): string {
+  let t = (input || "").trim().replace(/\s+/g, " ").replace(/[?!.]+$/g, "")
+  for (let i = 0; i < 3; i++) {
+    const before = t
+    // Each strip leaves a leading space, which would blind the next anchored
+    // (^) pattern until the final trim — so trim between strips, not just after.
+    t = t
+      .replace(
+        /^(i\s+)?(ask|tell|say|want|try|attempt|decide|choose|offer|wonder|question|search|look|demand|confront|follow|read|break|open|check|examine|inspect|grab|take|walk|go|head|move|sneak|hide|listen|watch)\b/i,
+        "",
+      )
+      .trim()
+      .replace(/^(elara|gareth|bran|i|we|me|him|her|them|you)\b/i, "")
+      .trim()
+      .replace(/^(about|whether|that|if|for|to|at|on|of)\b/i, "")
+      .trim()
+    if (t === before) break
+  }
+  if (t.split(/\s+/).length < 2) return ""
+  return t.charAt(0).toUpperCase() + t.slice(1)
+}
+
 // Deterministic fallback so a turn never breaks when no model is reachable.
 // Reacts to the player's actual words against this character's own secrets and
 // knowledge, so the same character reads differently across beats instead of
@@ -123,11 +149,19 @@ export function mockCastAgent(character: Character, ctx: CastContext): CastAgent
   const motivation = secret ? "keep what you are hiding out of this" : goal || "read the room"
   const intent = secret ? "deflect without showing why" : motivation
 
-  // A planning note is not dialogue. Rather than put awkward words in a
-  // character's mouth, stay silent and let the renderer externalize this as
-  // action and subtext — which is what a live sub-agent does too when it
-  // chooses not to speak.
-  const line = ""
+  // The fallback must still make the character ANSWER what the player said, or
+  // the scene reads as if nobody is listening. Take the substance of the
+  // player's input and answer it from this character's own stance.
+  const subject = topicOf(ctx.playerInput)
+  const line = subject
+    ? secret
+      ? `${subject}? You would do better not to say that out loud in here.`
+      : known
+        ? `${subject}? That is worth your attention. Say plainly what you mean by it.`
+        : `${subject}? Perhaps. But you are useful to me first — ${goal || "and I mean to use you"}.`
+    : secret
+      ? "Say what you actually mean. I am not going to guess for you."
+      : `Then we do it my way — ${goal || "and we do it now"}.`
 
   // Only claim a want "from you" when the material is actually about the
   // player; otherwise the UI falls back to showing their intent.

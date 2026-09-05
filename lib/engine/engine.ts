@@ -12,11 +12,21 @@ import type { DirectorOutput, Portrait, StoryState, TurnResult } from "./types"
 
 function applyStateChanges(state: StoryState, director: DirectorOutput) {
   for (const [key, value] of Object.entries(director.proposed_state_changes || {})) {
-    // Only "state.*" and "canon_flags.*" keys mutate player-visible/canon state directly;
-    // relationship./world.* deltas are tracked narratively for this in-memory build.
+    // "state.*" and "canon_flags.*" keys mutate player-visible/canon state
+    // directly; relationship./world.* deltas are tracked narratively for this
+    // in-memory build. Without the state.* cases below a Director that advances
+    // the chapter or the next event has no effect, and the story reads as stuck.
     if (key.startsWith("canon_flags.")) {
       const flag = key.slice("canon_flags.".length)
       state.state.canon_flags[flag] = Boolean(value)
+    } else if (key === "state.chapter" && typeof value === "number") {
+      state.state.chapter = value
+    } else if (key === "state.next_event" && typeof value === "string") {
+      state.state.next_event = value
+    } else if (key === "state.current_objective" && typeof value === "string") {
+      state.state.current_objective = value
+    } else if (key === "state.scene" && typeof value === "string") {
+      state.state.scene = value
     }
   }
 }

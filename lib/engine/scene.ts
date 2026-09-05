@@ -65,6 +65,13 @@ function capitalize(name: string): string {
   return name.length ? name[0].toUpperCase() + name.slice(1) : name
 }
 
+// A sub-agent's line is bare spoken words; the renderer owns the quotation
+// marks and the closing period, so strip any the agent added itself. Without
+// this a line ending in "." renders as `.."`.
+function spoken(line: string): string {
+  return line.trim().replace(/["""\s]+$/g, "").replace(/[.!?]+$/g, "")
+}
+
 // The brief refers to the player as "player"; render that in second person
 // to match the AI writer's voice instead of naming a "character" the player
 // controls.
@@ -87,7 +94,7 @@ export function mockScene(brief: DirectorOutput, cast: Record<string, CastAgentO
   // around that voice instead of opening the scene on bare description.
   const firstSpoken = castEntries.find((c) => c.line)
   if (firstSpoken) {
-    sentences.push(`${capitalize(firstSpoken.character)} calls out, "${firstSpoken.line.replace(/[""]+$/, "")}."`)
+    sentences.push(`${capitalize(firstSpoken.character)} calls out, "${spoken(firstSpoken.line)}."`)
   }
 
   if (brief.imagery_cue) {
@@ -101,7 +108,7 @@ export function mockScene(brief: DirectorOutput, cast: Record<string, CastAgentO
       if (c === firstSpoken) continue
       const who = capitalize(c.character)
       if (c.line) {
-        sentences.push(`${who} says, "${c.line.replace(/[""]+$/, "")}."`)
+        sentences.push(`${who} says, "${spoken(c.line)}."`)
       } else if (c.intent || c.motivation) {
         // A silent character renders as subtext, never as a state label: the
         // need behind their silence, carried in the body rather than named.
