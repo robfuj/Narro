@@ -77,6 +77,20 @@ export interface Character {
   knowledge: string[]
 }
 
+// One cast sub-agent's own answer for a beat. The Director is the single brain
+// that plans the beat; each character reasons for itself and returns this.
+export interface CastAgentOutput {
+  character: string
+  // What this character is trying to accomplish in this beat.
+  intent: string
+  // Their actual spoken line, in their own voice. Empty when they stay silent.
+  line: string
+  emotion: string
+  motivation: string
+  // What they want from the player right now — drives the reader's stakes.
+  wants_from_player: string
+}
+
 export interface StorySkeleton {
   title: string
   player_fantasy: string
@@ -131,6 +145,8 @@ export interface StoryState {
 export interface TurnResult {
   scene: string
   reader_callout: string
+  // Each present cast member's own sub-agent answer for this beat.
+  cast: Record<string, CastAgentOutput>
   player_agency_options: string[]
   visible_state_delta: Record<string, number | string | boolean>
   retrieved_memory_ids: string[]

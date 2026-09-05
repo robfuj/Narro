@@ -3,6 +3,7 @@
 // -> commit. No creative logic lives here.
 import { aiDirector, mockDirector } from "./director"
 import { aiScene, mockScene } from "./scene"
+import { runCastAgents } from "./cast-agent"
 import { rulesLayer, safeDevelop } from "./rules"
 import { estimateTransportation, narrativeQualityWarnings } from "./narrative-quality"
 import { resolveCharacterPortrait } from "./image"
@@ -89,15 +90,20 @@ export async function runTurn(state: StoryState, playerInput: string, opts: Turn
   const transportation = estimateTransportation(director, { openThreads: state.openThreads })
   state.state.transportation = transportation
 
+  // Multi-agent step: the brain has planned the beat, now every cast member
+  // present reasons for itself (in parallel) and returns its own voice. The
+  // renderer weaves their answers into prose rather than inventing them.
+  const cast = await runCastAgents(state.characters, director, state.moments, opts.useAi && usedAi)
+
   let sceneText: string
   if (opts.useAi && usedAi) {
     try {
-      sceneText = await aiScene(director)
+      sceneText = await aiScene(director, cast)
     } catch {
-      sceneText = mockScene(director)
+      sceneText = mockScene(director, cast)
     }
   } else {
-    sceneText = mockScene(director)
+    sceneText = mockScene(director, cast)
   }
 
   const safety = classifySafety(sceneText)
@@ -133,6 +139,7 @@ export async function runTurn(state: StoryState, playerInput: string, opts: Turn
   return {
     scene: sceneText,
     reader_callout: director.reader_callout ?? "",
+    cast,
     player_agency_options: director.player_agency_options,
     visible_state_delta: director.proposed_state_changes,
     retrieved_memory_ids: director.relevant_moment_ids,

@@ -11,10 +11,12 @@ import { InputGroup, InputGroupInput, InputGroupAddon, InputGroupButton } from "
 import { getOrCreateSessionId, resetSessionId } from "@/lib/session"
 import { saveStoryProgress } from "@/lib/progress"
 import { cn } from "@/lib/utils"
-import type { Portrait, OpenThread, BranchMenu, StorySkeleton } from "@/lib/engine/types"
+import type { CastAgentOutput, Portrait, OpenThread, BranchMenu, StorySkeleton } from "@/lib/engine/types"
 
 interface TurnResponse {
   scene: string
+  reader_callout?: string
+  cast?: Record<string, CastAgentOutput>
   player_agency_options: string[]
   character_images: Record<string, Portrait>
   ended: boolean
@@ -39,7 +41,15 @@ interface TurnResponse {
 }
 
 type Snapshot = TurnResponse["state_snapshot"]
-type LogEntry = { role: "scene" | "player"; text: string; chapter?: number }
+type LogEntry = {
+  role: "scene" | "player"
+  text: string
+  chapter?: number
+  // The narrator's direct address to the reader for this beat.
+  callout?: string
+  // Each present character's own sub-agent answer for this beat.
+  cast?: Record<string, CastAgentOutput>
+}
 
 // Small mono eyebrow label, the Coldharbour-style section marker rendered in
 // the quiet Oura palette instead of the original dark candle-lit one.
@@ -194,7 +204,15 @@ export function StoryPlayer({ storyId, title, cover }: { storyId: string; title:
       })
       const data: TurnResponse = await res.json()
       if (!res.ok) throw new Error(data.error || "Failed to start story")
-      setLog([{ role: "scene", text: data.scene, chapter: data.state_snapshot.chapter }])
+      setLog([
+        {
+          role: "scene",
+          text: data.scene,
+          chapter: data.state_snapshot.chapter,
+          callout: data.reader_callout,
+          cast: data.cast,
+        },
+      ])
       setOptions(data.player_agency_options || [])
       setImages(data.character_images || {})
       setSnapshot(data.state_snapshot)
@@ -222,7 +240,16 @@ export function StoryPlayer({ storyId, title, cover }: { storyId: string; title:
       })
       const data: TurnResponse = await res.json()
       if (!res.ok) throw new Error(data.error || "Failed to continue")
-      setLog((l) => [...l, { role: "scene", text: data.scene, chapter: data.state_snapshot.chapter }])
+      setLog((l) => [
+        ...l,
+        {
+          role: "scene",
+          text: data.scene,
+          chapter: data.state_snapshot.chapter,
+          callout: data.reader_callout,
+          cast: data.cast,
+        },
+      ])
       setOptions(data.player_agency_options || [])
       setImages((prev) => ({ ...prev, ...data.character_images }))
       setSnapshot(data.state_snapshot)
@@ -347,13 +374,49 @@ export function StoryPlayer({ storyId, title, cover }: { storyId: string; title:
                 )
               }
               const entryIndex = log.slice(0, i + 1).filter((e) => e.role === "scene").length
+              const castEntries = Object.values(entry.cast || {})
               return (
-                <article key={i} className="flex flex-col gap-2.5">
+                <article key={i} className="flex flex-col gap-3">
                   <Eyebrow>
                     Entry {String(entryIndex).padStart(2, "0")}
                     {typeof entry.chapter === "number" && <> · Chapter {String(entry.chapter).padStart(2, "0")}</>}
                   </Eyebrow>
+
+                  {/* The narrator breaking the fourth wall to speak to the reader.
+                      Set as a centred pull-quote so it reads as a distinct voice
+                      from the scene prose rather than another paragraph of it. */}
+                  {entry.callout && (
+                    <figure className="flex flex-col items-center gap-1.5 text-center">
+                      <Eyebrow className="text-primary">To you</Eyebrow>
+                      <blockquote className="font-display text-xl italic leading-snug text-balance sm:text-2xl">
+                        {entry.callout}
+                      </blockquote>
+                    </figure>
+                  )}
+
                   <p className="font-story text-lg leading-relaxed text-pretty">{entry.text}</p>
+
+                  {/* Each character is its own sub-agent; this surfaces what each
+                      one wants from the reader, which the prose deliberately
+                      leaves as subtext. */}
+                  {castEntries.length > 0 && (
+                    <div className="flex flex-col gap-2 border-t border-border pt-3">
+                      <Eyebrow>What they&apos;re after</Eyebrow>
+                      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                        {castEntries.map((c) => (
+                          <div
+                            key={c.character}
+                            className="flex min-w-0 flex-col gap-0.5 rounded-lg bg-muted px-3 py-2 sm:basis-52 sm:flex-1"
+                          >
+                            <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                              {c.character}
+                            </span>
+                            <span className="text-sm leading-snug">{c.wants_from_player || c.intent}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </article>
               )
             })}

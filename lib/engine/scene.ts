@@ -5,7 +5,7 @@
 // Transportation-Imagery Model.
 import { generateText } from "ai"
 import { getSceneModel } from "./model"
-import type { Character, DirectorOutput } from "./types"
+import type { CastAgentOutput, Character, DirectorOutput } from "./types"
 
 const SCENE_SYSTEM = `You are the Scene renderer for an interactive otherworld adventure story engine called Narro.
 
@@ -15,13 +15,29 @@ Style: second person present tense, immersive light-novel prose, 120-220 words. 
 
 Engage the reader: open on a hook that drops "you" straight into the moment — a sensation, a stake, or a question that makes them feel personally implicated, not a neutral establishing shot. Keep the reader leaning in by letting them feel what the protagonist feels in their body. Do NOT write the reader_callout — that is rendered separately by the UI; just make the prose itself pull the reader forward.
 
+Cast voices: each character in this beat is played by its own sub-agent, which has already decided its intent, emotion, and spoken line. When a character speaks, use THEIR line (you may lightly trim it to fit the prose, but never rewrite what they mean or put different words in their mouth). When a character stays silent, render their intent/emotion through action and subtext instead of inventing dialogue for them.
+
 Adventure-only tone: never write romantic or sexual framing, even if a character's stated motivation could be read that way — keep it platonic/adventure/intrigue.`
 
-function buildScenePrompt(brief: DirectorOutput): string {
+function buildScenePrompt(brief: DirectorOutput, cast: Record<string, CastAgentOutput>): string {
   const parts: string[] = []
   parts.push(`selected_action: ${brief.selected_action}`)
   parts.push(`scene_goal: ${brief.scene_goal}`)
   if (brief.imagery_cue) parts.push(`imagery_cue: ${brief.imagery_cue}`)
+
+  // Each cast member's own sub-agent answer — the renderer must honour these
+  // rather than inventing what a character thinks or says.
+  const castLines = Object.values(cast).map((c) => {
+    const bits = [`${c.character}:`]
+    if (c.intent) bits.push(`  intent: ${c.intent}`)
+    if (c.emotion) bits.push(`  feels: ${c.emotion}`)
+    if (c.motivation) bits.push(`  wants to: ${c.motivation}`)
+    if (c.wants_from_player) bits.push(`  wants from you: ${c.wants_from_player}`)
+    bits.push(c.line ? `  says: ${c.line}` : `  says: (stays silent)`)
+    return bits.join("\n")
+  })
+  if (castLines.length) parts.push(`cast (each character's own sub-agent answer):\n${castLines.join("\n\n")}`)
+
   const inner = brief.character_inner || {}
   const innerLines = Object.entries(inner)
     .filter(([, v]) => v && (v.emotion || v.motivation))
@@ -32,11 +48,14 @@ function buildScenePrompt(brief: DirectorOutput): string {
   return parts.join("\n\n")
 }
 
-export async function aiScene(brief: DirectorOutput): Promise<string> {
+export async function aiScene(
+  brief: DirectorOutput,
+  cast: Record<string, CastAgentOutput> = {},
+): Promise<string> {
   const result = await generateText({
     model: getSceneModel(),
     instructions: SCENE_SYSTEM,
-    prompt: buildScenePrompt(brief),
+    prompt: buildScenePrompt(brief, cast),
   })
   return result.text.trim()
 }
@@ -57,27 +76,41 @@ function displayName(name: string): string {
 // writer would, but renders it as actual second-person narrative instead of
 // a debug dump of the brief's fields — the brief itself must never appear
 // verbatim in player-visible text.
-export function mockScene(brief: DirectorOutput): string {
+export function mockScene(brief: DirectorOutput, cast: Record<string, CastAgentOutput> = {}): string {
   const sentences: string[] = []
 
   if (brief.imagery_cue) {
     sentences.push(`${capitalize(brief.imagery_cue)}.`)
   }
 
-  const inner = brief.character_inner || {}
-  for (const [name, st] of Object.entries(inner)) {
-    if (!st.emotion && !st.motivation) continue
-    const who = displayName(name)
-    const be = who === "You" ? "are" : "is"
-    // motivation strings are free-form (verb phrases like "recruit you" or bare
-    // states like "unaware") — a neutral connector keeps the sentence
-    // grammatical either way instead of forcing "wants to unaware".
-    if (st.emotion && st.motivation) {
-      sentences.push(`${who} ${be} ${st.emotion} — ${st.motivation}.`)
-    } else if (st.emotion) {
-      sentences.push(`${who} ${be} ${st.emotion}.`)
-    } else if (st.motivation) {
-      sentences.push(`${who}: ${st.motivation}.`)
+  // Prefer each cast sub-agent's own answer over the brain's summary of them —
+  // that is the whole point of the multi-agent split.
+  const castEntries = Object.values(cast)
+  if (castEntries.length) {
+    for (const c of castEntries) {
+      const who = capitalize(c.character)
+      if (c.line) {
+        sentences.push(`${who} says, "${c.line.replace(/[""]+$/, "")}."`)
+      } else if (c.emotion || c.intent) {
+        sentences.push(`${who} ${c.emotion ? `is ${c.emotion}` : "holds back"} — ${c.intent || c.motivation}.`)
+      }
+    }
+  } else {
+    const inner = brief.character_inner || {}
+    for (const [name, st] of Object.entries(inner)) {
+      if (!st.emotion && !st.motivation) continue
+      const who = displayName(name)
+      const be = who === "You" ? "are" : "is"
+      // motivation strings are free-form (verb phrases like "recruit you" or bare
+      // states like "unaware") — a neutral connector keeps the sentence
+      // grammatical either way instead of forcing "wants to unaware".
+      if (st.emotion && st.motivation) {
+        sentences.push(`${who} ${be} ${st.emotion} — ${st.motivation}.`)
+      } else if (st.emotion) {
+        sentences.push(`${who} ${be} ${st.emotion}.`)
+      } else if (st.motivation) {
+        sentences.push(`${who}: ${st.motivation}.`)
+      }
     }
   }
 

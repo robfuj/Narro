@@ -183,12 +183,18 @@ export function mockDirector({ input, state, moments, characters, openThreads, l
     return withQualityLevers(d)
   }
 
+  // Even a quiet CONTINUE beat has people in the room. Keep the characters
+  // already present in the scene affected so their sub-agents keep reacting —
+  // otherwise the cast layer goes silent on the most common beat.
+  const present = state.seen_characters.filter((id) => characters[id])
+  const affected = present.length ? present : Object.keys(characters)
+
   const d: DirectorOutput = {
     selected_action: "CONTINUE",
     rationale: "No earned development; let the scene breathe.",
     scene_goal: "Continue the immediate scene without a material state shift.",
     relevant_moment_ids: [],
-    affected_entities: [],
+    affected_entities: ["player", ...affected],
     allowed_facts: [],
     prohibited_facts: [],
     character_intentions: {},
