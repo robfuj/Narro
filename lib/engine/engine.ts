@@ -1,8 +1,9 @@
 // Story Engine orchestrator (architecture §3, §4.1). Stateless — owns the
-// per-turn sequence: load state -> Director -> Rules Layer -> Scene -> Safety
-// -> commit. No creative logic lives here.
+// per-turn sequence: load state -> Cast sub-agents -> Director -> Rules Layer
+// -> Scene -> Safety -> commit. No creative logic lives here.
 import { aiDirector, mockDirector } from "./director"
 import { aiScene, mockScene } from "./scene"
+import { runCastAgents } from "./cast-agent"
 import { rulesLayer, safeDevelop } from "./rules"
 import { estimateTransportation, narrativeQualityWarnings } from "./narrative-quality"
 import { resolveCharacterPortrait } from "./image"
@@ -11,11 +12,21 @@ import type { DirectorOutput, Portrait, StoryState, TurnResult } from "./types"
 
 function applyStateChanges(state: StoryState, director: DirectorOutput) {
   for (const [key, value] of Object.entries(director.proposed_state_changes || {})) {
-    // Only "state.*" and "canon_flags.*" keys mutate player-visible/canon state directly;
-    // relationship./world.* deltas are tracked narratively for this in-memory build.
+    // "state.*" and "canon_flags.*" keys mutate player-visible/canon state
+    // directly; relationship./world.* deltas are tracked narratively for this
+    // in-memory build. Without the state.* cases below a Director that advances
+    // the chapter or the next event has no effect, and the story reads as stuck.
     if (key.startsWith("canon_flags.")) {
       const flag = key.slice("canon_flags.".length)
       state.state.canon_flags[flag] = Boolean(value)
+    } else if (key === "state.chapter" && typeof value === "number") {
+      state.state.chapter = value
+    } else if (key === "state.next_event" && typeof value === "string") {
+      state.state.next_event = value
+    } else if (key === "state.current_objective" && typeof value === "string") {
+      state.state.current_objective = value
+    } else if (key === "state.scene" && typeof value === "string") {
+      state.state.scene = value
     }
   }
 }
@@ -45,6 +56,16 @@ export interface TurnOptions {
 }
 
 export async function runTurn(state: StoryState, playerInput: string, opts: TurnOptions): Promise<TurnResult> {
+  // Multi-agent step 1 — the cast reacts FIRST. Each character reasons for
+  // itself, from only what it personally witnessed, about what the player just
+  // said. The brain then plans the beat around those real thoughts instead of
+  // inventing everyone's reactions after the fact.
+  const cast = await runCastAgents(
+    state.characters,
+    { playerInput, moments: state.moments, state: state.state },
+    opts.useAi,
+  )
+
   const directorInput = {
     input: playerInput,
     state: state.state,
@@ -53,6 +74,7 @@ export async function runTurn(state: StoryState, playerInput: string, opts: Turn
     openThreads: state.openThreads,
     knowledge: state.knowledge,
     leadsTo: state.leads_to,
+    castThoughts: cast,
   }
 
   let director: DirectorOutput
@@ -92,12 +114,12 @@ export async function runTurn(state: StoryState, playerInput: string, opts: Turn
   let sceneText: string
   if (opts.useAi && usedAi) {
     try {
-      sceneText = await aiScene(director)
+      sceneText = await aiScene(director, cast)
     } catch {
-      sceneText = mockScene(director)
+      sceneText = mockScene(director, cast)
     }
   } else {
-    sceneText = mockScene(director)
+    sceneText = mockScene(director, cast)
   }
 
   const safety = classifySafety(sceneText)
@@ -133,6 +155,7 @@ export async function runTurn(state: StoryState, playerInput: string, opts: Turn
   return {
     scene: sceneText,
     reader_callout: director.reader_callout ?? "",
+    cast,
     player_agency_options: director.player_agency_options,
     visible_state_delta: director.proposed_state_changes,
     retrieved_memory_ids: director.relevant_moment_ids,

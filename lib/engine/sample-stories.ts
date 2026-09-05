@@ -78,7 +78,7 @@ export const SAMPLE_STORIES: Record<string, StoryState> = {
         "A reborn soul must build a place in Aethermoor's capital before their otherworld secret gets them branded a spy, while the royal guard's captain quietly hunts for exactly that kind of infiltrator.",
       pressure_engine: "social system — the capital watches strangers closely, and trust is the only currency",
       opening_scene:
-        "Rain on the shutters of Elara's roadside inn. You have just enough coin for one more night, and Gareth, the royal guard captain, has just walked in out of the storm.",
+        "\"You're not sleeping in the yard tonight,\" Elara calls from behind the bar, her voice carrying over the rain hammering the inn's shutters. \"Not while I've still got a roof that holds.\" The common room smells of tallow smoke, wet wool, and the last of the day's ale; a fire gutters in the hearth and throws the low beams into orange, and out on the capital road the mud has already swallowed every cart track that passed today. You have just enough coin for one more night — and the door has just swung open, letting the storm in behind Gareth, the royal guard captain, his breastplate still beading with rain.",
       arc_beats: [
         "Hook: you arrive in Aethermoor with nothing but memory of a life before",
         "Attachment: Elara gives you shelter and, if trusted, hears your secret",
@@ -120,7 +120,7 @@ export const SAMPLE_STORIES: Record<string, StoryState> = {
         "An apprentice smith must win the forge-right before the season's trial ends, while Vara, undefeated in the ring, makes every step of the way a duel.",
       pressure_engine: "competition — a fixed trial season and a rival who never loses",
       opening_scene:
-        "Sparks drift up past the mountain hold's chimney vents. Bran sets a half-forged blade on the anvil and it isn't ready, and the trial is tomorrow.",
+        "\"Don't quench it yet,\" Bran calls across the forge hall, waving you back from the trough with a soot-streaked hand. \"That steel isn't ready — and neither of us wants to find that out tomorrow.\" Sparks drift up past the mountain hold's chimney vents and die against the dark. The hall breathes heat: bellows sighing, coal snapping, stone walls sweating with it, the smell of hot iron and sulfur sitting heavy in your lungs. Every anvil in Emberhold is still working this late, and every one of them is forging for the same trial. Bran sets his half-forged blade down on the anvil, and it isn't ready.",
       arc_beats: [
         "Hook: you arrive at Emberhold chasing the forge-right",
         "Attachment: Bran becomes an ally, or a cautionary tale, of what fear of failure does to a smith",
